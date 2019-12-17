@@ -1,0 +1,11 @@
+.idea/*
+node_modules
+package-lock.json
+dump.rdb
+.env
+db/*
+db_trading/*
+
+# used by the Makefile
+/build/_workspace/*
+/build/bin/*
