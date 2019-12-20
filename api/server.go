@@ -5,7 +5,6 @@ import (
 	"fmt"
 	_ "github.com/kyber/staking/api/docs"
 	"github.com/kyber/staking/api/handler"
-	"github.com/kyber/staking/contestant"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	echoLog "github.com/labstack/gommon/log"
@@ -32,7 +31,7 @@ type Server struct {
 // @description API is used to interact with Kyber Staking contract
 // @license.name Apache 2.0
 // @host localhost:8080
-func NewServer(kyberSc *contestant.KyberStakingContract) *Server {
+func NewServer() *Server {
 	e := echo.New()
 
 	e.Logger.SetLevel(echoLog.DEBUG)
@@ -51,7 +50,7 @@ func NewServer(kyberSc *contestant.KyberStakingContract) *Server {
 	// Add validator
 	e.Validator = NewValidator()
 
-	h := handler.NewHandler(kyberSc)
+	h := handler.NewHandler()
 
 	return &Server{
 		Router:  e,
@@ -75,11 +74,11 @@ func (self *Server) RegisterRoutes() {
 	e.POST("/delegate", h.Delegate)
 	e.POST("/vote", h.Vote)
 
-	e.GET("/stake", h.GetStake)
-	e.GET("/delegateStake", h.GetDelegateStake)
-	e.GET("/representative", h.GetRepresentative)
-	e.GET("/reward", h.GetReward)
-	e.GET("/poolReward", h.GetPoolReward)
+	e.GET("/getStake", h.GetStake)
+	e.GET("/getDelegatedStake", h.GetDelegateStake)
+	e.GET("/getRepresentative", h.GetRepresentative)
+	e.GET("/getReward", h.GetReward)
+	e.GET("/getPoolReward", h.GetPoolReward)
 }
 
 func (self *Server) Run() {

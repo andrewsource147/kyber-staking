@@ -12,9 +12,9 @@ type Handler struct {
 	StakingContract *contestant.KyberStakingContract
 }
 
-func NewHandler(kyberSc *contestant.KyberStakingContract) *Handler {
+func NewHandler() *Handler {
 	return &Handler{
-		StakingContract: kyberSc,
+		StakingContract: contestant.NewKyberStakingContract(0, 0),
 	}
 }
 
@@ -136,7 +136,7 @@ func (self *Handler) Vote(c echo.Context) (err error) {
 // @Param staker query string true "Staker name"
 // @Success 200 {object} handler.Response
 // @Failure 400 {object} utils.Error
-// @Router /stake [get]
+// @Router /getStake [get]
 func (self *Handler) GetStake(c echo.Context) (err error) {
 	epochStr := c.QueryParam("epoch")
 	staker := c.QueryParam("staker")
@@ -161,7 +161,7 @@ func (self *Handler) GetStake(c echo.Context) (err error) {
 // @Param staker query string true "Staker name"
 // @Success 200 {object} handler.Response
 // @Failure 400 {object} utils.Error
-// @Router /delegateStake [get]
+// @Router /getDelegatedStake [get]
 func (self *Handler) GetDelegateStake(c echo.Context) (err error) {
 	epochStr := c.QueryParam("epoch")
 	staker := c.QueryParam("staker")
@@ -186,7 +186,7 @@ func (self *Handler) GetDelegateStake(c echo.Context) (err error) {
 // @Param staker query string true "Staker name"
 // @Success 200 {object} handler.Response
 // @Failure 400 {object} utils.Error
-// @Router /representative [get]
+// @Router /getRepresentative [get]
 func (self *Handler) GetRepresentative(c echo.Context) (err error) {
 	epochStr := c.QueryParam("epoch")
 	staker := c.QueryParam("staker")
@@ -211,7 +211,7 @@ func (self *Handler) GetRepresentative(c echo.Context) (err error) {
 // @Param staker query string true "Staker name"
 // @Success 200 {object} handler.Response
 // @Failure 400 {object} utils.Error
-// @Router /reward [get]
+// @Router /getReward [get]
 func (self *Handler) GetReward(c echo.Context) (err error) {
 	epochStr := c.QueryParam("epoch")
 	staker := c.QueryParam("staker")
@@ -236,7 +236,7 @@ func (self *Handler) GetReward(c echo.Context) (err error) {
 // @Param staker query string true "Staker name"
 // @Success 200 {object} handler.Response
 // @Failure 400 {object} utils.Error
-// @Router /poolReward [get]
+// @Router /getPoolReward [get]
 func (self *Handler) GetPoolReward(c echo.Context) (err error) {
 	epochStr := c.QueryParam("epoch")
 	staker := c.QueryParam("staker")
