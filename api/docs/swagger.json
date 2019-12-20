@@ -1,0 +1,524 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API is used to interact with Kyber Staking contract",
+        "title": "Kyber Staking API",
+        "contact": {},
+        "license": {
+            "name": "Apache 2.0"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "paths": {
+        "/delegate": {
+            "post": {
+                "description": "Staker delegate an amount to a representative at a block",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "Delegate",
+                "parameters": [
+                    {
+                        "description": "Delegate request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/handler.DelegateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/delegateStake": {
+            "get": {
+                "description": "Get amount a staker has been delegated at an epoch",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "GetDelegateStake",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Epoch number",
+                        "name": "epoch",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Staker name",
+                        "name": "staker",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/newContract": {
+            "post": {
+                "description": "Create new contract",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "Create new contract",
+                "parameters": [
+                    {
+                        "description": "Create contract request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/handler.CreateContractRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/poolReward": {
+            "get": {
+                "description": "Get reward for a staker from representative at an epoch",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "GetPoolReward",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Epoch number",
+                        "name": "epoch",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Staker name",
+                        "name": "staker",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/representative": {
+            "get": {
+                "description": "Get representative for a staker at an epoch",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "GetRepresentative",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Epoch number",
+                        "name": "epoch",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Staker name",
+                        "name": "staker",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/reward": {
+            "get": {
+                "description": "Get reward for a staker at an epoch (in percentage)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "GetReward",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Epoch number",
+                        "name": "epoch",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Staker name",
+                        "name": "staker",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/stake": {
+            "get": {
+                "description": "Get amount a staker has staked at an epoch",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "GetStake",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Epoch number",
+                        "name": "epoch",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Staker name",
+                        "name": "staker",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Stake an amount for a staker at a block",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "Stake",
+                "parameters": [
+                    {
+                        "description": "Stake request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/handler.StakeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/vote": {
+            "post": {
+                "description": "Staker vote for a campain ID at a block",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "Vote",
+                "parameters": [
+                    {
+                        "description": "Vote request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/handler.VoteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/withdraw": {
+            "post": {
+                "description": "Staker withdraw an amount at a block",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain",
+                    "application/json"
+                ],
+                "summary": "Withdraw",
+                "parameters": [
+                    {
+                        "description": "Withdraw request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/handler.StakeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Error"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handler.CreateContractRequest": {
+            "type": "object",
+            "required": [
+                "epoch_duration",
+                "start_block"
+            ],
+            "properties": {
+                "epoch_duration": {
+                    "type": "integer",
+                    "example": 1000
+                },
+                "start_block": {
+                    "type": "integer",
+                    "example": 2000
+                }
+            }
+        },
+        "handler.DelegateRequest": {
+            "type": "object",
+            "required": [
+                "block",
+                "representative",
+                "staker"
+            ],
+            "properties": {
+                "block": {
+                    "type": "integer",
+                    "example": 3000
+                },
+                "representative": {
+                    "type": "string",
+                    "example": "Bob"
+                },
+                "staker": {
+                    "type": "string",
+                    "example": "Alice"
+                }
+            }
+        },
+        "handler.Response": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object"
+                }
+            }
+        },
+        "handler.StakeRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "block",
+                "staker"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "example": 500
+                },
+                "block": {
+                    "type": "integer",
+                    "example": 3000
+                },
+                "staker": {
+                    "type": "string",
+                    "example": "Alice"
+                }
+            }
+        },
+        "handler.VoteRequest": {
+            "type": "object",
+            "required": [
+                "block",
+                "staker",
+                "vote_id"
+            ],
+            "properties": {
+                "block": {
+                    "type": "integer",
+                    "example": 3000
+                },
+                "staker": {
+                    "type": "string",
+                    "example": "Alice"
+                },
+                "vote_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "utils.Error": {
+            "type": "object",
+            "properties": {
+                "errors": {
+                    "type": "object"
+                }
+            }
+        }
+    }
+}

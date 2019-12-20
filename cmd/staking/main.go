@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/kyber/staking/api"
 	"log"
 	"os"
 	"runtime"
@@ -47,6 +48,9 @@ func cmdMain(ctx *cli.Context) error {
 	kyberSc.GetStake(uint64(0), "mike")
 	kyberSc.GetStake(uint64(1), "mike")
 	log.Println("staking done")
+
+	server := api.NewServer(kyberSc)
+	server.Run()
 
 	return nil
 }
