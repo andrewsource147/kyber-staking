@@ -1,0 +1,36 @@
+2000 1000
+stake 900 500 mike
+getStake 0 mike
+getStake 1 mike
+stake 1000 500 victor
+stake 1001 1200 loi
+stake 1001 500 mike
+withdraw 1002 200 mike
+getStake 1 mike
+getStake 2 mike
+vote 1002 1 mike
+vote 1003 1 victor
+vote 1004 1 loi
+getReward 1 mike
+getReward 1 victor
+getReward 1 loi
+delegate 1005 loi victor
+getDelegatedStake 1 victor
+getDelegatedStake 2 victor
+getRepresentative 1 loi
+getRepresentative 2 loi
+vote 3000 2 mike
+vote 3001 2 victor
+getReward 2 mike
+getReward 2 victor
+getPoolReward 2 loi
+getPoolReward 2 victor
+getPoolReward 2 mike
+vote 3002 3 mike
+getReward 2 mike
+getReward 2 victor
+withdraw 3003 200 mike
+getReward 2 mike
+getReward 2 victor
+vote 19001 2 victor
+getReward 10 victor
