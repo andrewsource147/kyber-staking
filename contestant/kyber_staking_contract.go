@@ -1,6 +1,8 @@
 package contestant
 
-import "log"
+import (
+	"log"
+)
 
 func contains(slice []uint64, item uint64) bool {
 	set := make(map[uint64]struct{}, len(slice))
@@ -33,7 +35,7 @@ func remove(s []string, r string) []string {
 type KyberStakingContract struct {
 	startBlock, epochDuration, latestEpoch uint64
 	book map[uint64]map[string]*StakerStruct
-	book2 map[string]uint64
+	book2 map[string][]uint64
 	voters map[uint64][]string
 }
 
@@ -46,16 +48,12 @@ type StakerStruct struct {
 	delegateTo string
 }
 
-func NewKyberStakingContract() *KyberStakingContract {
-	return &KyberStakingContract{0, 0, 0,
-		make(map[uint64]map[string]*StakerStruct), make(map[string]uint64), make(map[uint64][]string)}
+func NewKyberStakingContract(startBlock uint64, epochDuration uint64) *KyberStakingContract {
+	return &KyberStakingContract{startBlock, epochDuration, 0,
+		make(map[uint64]map[string]*StakerStruct), make(map[string][]uint64), make(map[uint64][]string)}
 }
-func (sc *KyberStakingContract) Init(startBlock uint64, epochDuration uint64){
-	sc.startBlock = startBlock
-	sc.epochDuration = epochDuration
-}
+
 func (sc *KyberStakingContract) GetEpoch(block uint64) uint64{
-	//block < @startBlock ? 0 : ((block - @startBlock)/@epoch + 1)
 	if block < sc.startBlock {
 		return 0
 	}else{
@@ -63,29 +61,35 @@ func (sc *KyberStakingContract) GetEpoch(block uint64) uint64{
 	}
 }
 
-func (sc *KyberStakingContract) GetBook() (map[uint64]map[string]*StakerStruct){
-	return sc.book
+func (sc *KyberStakingContract) findActiveTarget(epoch uint64, staker string) (uint64, *StakerStruct, uint64){
+	if _,ok1 := sc.book2[staker]; ok1 {
+		for i := len(sc.book2[staker])-1; i >= 0; i-- {
+			item:=sc.book2[staker][i]
+			if item==epoch {
+				return item, sc.book[item][staker], 0
+			} else if item < epoch {return item, sc.book[item][staker], 1}
+		}
+	}
+	return 0, nil, 2
 }
 
-func (sc *KyberStakingContract) InitEpoch(epoch uint64, staker string) {
+func (sc *KyberStakingContract) InitEpoch(epoch uint64, staker string) {// 3M records
 	if _, ok := sc.book[epoch]; !ok {
-		sc.book[epoch] = make(map[string]*StakerStruct)
-		sc.voters[epoch] = []string{}
+		sc.book[epoch] = make(map[string]*StakerStruct) //1.9s
+		sc.voters[epoch] = []string{}					//2.9s
 	}
-
-	if _, ok := sc.book[epoch][staker]; !ok {
+	_, activeTarget, status:= sc.findActiveTarget(epoch, staker)
+	if status == 1 {// 3M staker = 7.3
 		sc.book[epoch][staker] = &StakerStruct{0, 0, 0, []uint64{}, []string{staker}, []string{staker}, staker, staker}
-		if _,ok1 := sc.book2[staker]; ok1 {
-			prevTemp := sc.book[sc.book2[staker]][staker]
-			sc.book[epoch][staker].representativeForNextEpoch = prevTemp.representativeForNextEpoch
-			sc.book[epoch][staker].representativeFor = prevTemp.representativeForNextEpoch
-			sc.book[epoch][staker].delegateToNextEpoch = prevTemp.delegateToNextEpoch
-			sc.book[epoch][staker].delegateTo = prevTemp.delegateToNextEpoch
-			sc.book[epoch][staker].stake = prevTemp.stake + prevTemp.currentStake - prevTemp.withdraw
-		}
-		if epoch >= sc.latestEpoch {
-			sc.book2[staker] = epoch
-		}
+		sc.book[epoch][staker].representativeForNextEpoch = append([]string{}, activeTarget.representativeForNextEpoch...)
+		sc.book[epoch][staker].representativeFor = append([]string{} , activeTarget.representativeForNextEpoch...)
+		sc.book[epoch][staker].delegateToNextEpoch = activeTarget.delegateToNextEpoch
+		sc.book[epoch][staker].delegateTo = activeTarget.delegateToNextEpoch
+		sc.book[epoch][staker].stake = activeTarget.stake + activeTarget.currentStake - activeTarget.withdraw
+		sc.book2[staker] = append(sc.book2[staker], epoch)
+	} else if status == 2 {// 1 staker = 6.5
+		sc.book[epoch][staker] = &StakerStruct{0, 0, 0, []uint64{}, []string{staker}, []string{staker}, staker, staker}
+		sc.book2[staker] = []uint64{epoch}
 	}
 }
 
@@ -116,24 +120,34 @@ func (sc *KyberStakingContract) Withdraw(block uint64, amount uint64, staker str
 func (sc *KyberStakingContract) Delegate(block uint64, staker string, representative string) {
 	epoch := sc.GetEpoch(block)
 	if epoch > sc.latestEpoch { sc.latestEpoch = epoch }
-	sc.InitEpoch(epoch, staker)
-	sc.InitEpoch(epoch, representative)
-	sc.InitEpoch(epoch, sc.book[epoch][staker].delegateToNextEpoch)
+	sc.InitEpoch(epoch, staker) //1,2 staker 6.5
+	sc.InitEpoch(epoch, representative)//1,2 staker 9s
+	sc.InitEpoch(epoch, sc.book[epoch][staker].delegateToNextEpoch)//1,2 staker 10s
+	//log.Println("---", staker, sc.book[epoch][staker])
+	//log.Println("---", representative, sc.book[epoch][representative])
 	if staker == representative {
-		remove(sc.book[epoch][ sc.book[epoch][staker].delegateToNextEpoch ].representativeForNextEpoch, staker)
+		delegateToNextEpoch := sc.book[epoch][staker].delegateToNextEpoch
+		sc.book[epoch][ delegateToNextEpoch ].representativeForNextEpoch = append([]string{}, remove(sc.book[epoch][ delegateToNextEpoch ].representativeForNextEpoch, staker)...)
 		if !containsString(sc.book[epoch][staker].representativeForNextEpoch, staker) {
 			sc.book[epoch][staker].representativeForNextEpoch = append(sc.book[epoch][staker].representativeForNextEpoch, staker)
-			sc.book[epoch][staker].delegateToNextEpoch = staker
 		}
+		sc.book[epoch][staker].delegateToNextEpoch = staker
 	}else {
-		if !containsString(sc.book[epoch][representative].representativeForNextEpoch, staker) {
-			sc.book[epoch][representative].representativeForNextEpoch = append(sc.book[epoch][representative].representativeForNextEpoch, staker)
-		}
-		remove(sc.book[epoch][ sc.book[epoch][staker].delegateToNextEpoch ].representativeForNextEpoch, staker)
+		delegateToNextEpoch := sc.book[epoch][staker].delegateToNextEpoch
+		if delegateToNextEpoch != representative {
+			if !containsString(sc.book[epoch][representative].representativeForNextEpoch, staker) {
+				sc.book[epoch][representative].representativeForNextEpoch = append(sc.book[epoch][representative].representativeForNextEpoch, staker)
+			}
+			sc.book[epoch][ delegateToNextEpoch ].representativeForNextEpoch = append([]string{}, remove(sc.book[epoch][ delegateToNextEpoch ].representativeForNextEpoch, staker)...)
 
-		sc.book[epoch][staker].delegateToNextEpoch = representative
-		remove(sc.book[epoch][staker].representativeForNextEpoch, staker)
+			sc.book[epoch][staker].delegateToNextEpoch = representative
+			sc.book[epoch][staker].representativeForNextEpoch = append([]string{},  remove(sc.book[epoch][staker].representativeForNextEpoch, staker)...)
+		}
 	}
+
+	//log.Println("---", staker, sc.book[epoch][staker])
+	//log.Println("---", representative, sc.book[epoch][representative])
+	//log.Println("-----------------------------------")
 }
 
 func (sc *KyberStakingContract) Vote(block uint64, voteid uint64, staker string) {
@@ -153,98 +167,82 @@ func (sc *KyberStakingContract) Vote(block uint64, voteid uint64, staker string)
 }
 
 func (sc *KyberStakingContract) GetStake(epoch uint64, staker string) (stake uint64) {
-	if _, ok := sc.book[epoch][staker]; !ok{
-		prevTemp := sc.book[sc.book2[staker]][staker]
-		log.Println(prevTemp.stake + prevTemp.currentStake - prevTemp.withdraw)
-		return prevTemp.stake + prevTemp.currentStake - prevTemp.withdraw
-	}else {
-		log.Println(sc.book[epoch][staker].stake - sc.book[epoch][staker].withdraw)
-		return sc.book[epoch][staker].stake - sc.book[epoch][staker].withdraw
+
+	_, activeTarget, status:= sc.findActiveTarget(epoch, staker)
+	if status == 1{
+		return activeTarget.stake + activeTarget.currentStake - activeTarget.withdraw
+	}else if status == 0 {
+		return activeTarget.stake - activeTarget.withdraw
 	}
+	return 0
 }
 
 func (sc *KyberStakingContract) GetDelegatedStake(epoch uint64, staker string) (delegatedStake uint64) {
 	sum := uint64(0)
 	var temp []string
-	if _, ok := sc.book[epoch][staker]; !ok{
-		temp = sc.book[sc.book2[staker]][staker].representativeForNextEpoch
-	}else {
-		temp = sc.book[epoch][staker].representativeFor
+	_, activeTarget, status:= sc.findActiveTarget(epoch, staker)
+	if status == 2 { return 0 }
+	if status == 1 {
+		temp = activeTarget.representativeForNextEpoch
+	} else if status == 0 {
+		temp = activeTarget.representativeFor
 	}
 
 	for _, item := range temp {
 		if item != staker{
-			if _, ok := sc.book[epoch][item]; !ok{
-				prevTemp := sc.book[sc.book2[item]][item]
-				sum += prevTemp.stake + prevTemp.currentStake - prevTemp.withdraw
-
-			}else{
-				sum += sc.book[epoch][item].stake - sc.book[epoch][item].withdraw
-
+			_, activeTarget, status:= sc.findActiveTarget(epoch, item)
+			if status == 1 {
+				sum += activeTarget.stake + activeTarget.currentStake - activeTarget.withdraw
+			} else if status == 0 {
+				sum += activeTarget.stake - activeTarget.withdraw
 			}
 		}
 	}
-	log.Println(sum)
+	//log.Println(sum)
 	return sum
 }
 
 func (sc *KyberStakingContract) GetRepresentative(epoch uint64, staker string) (poolmaster string) {
-	if _, ok := sc.book[epoch][staker]; !ok{
-		prevTemp := sc.book[sc.book2[staker]][staker]
-		log.Println(prevTemp.delegateToNextEpoch)
-		return prevTemp.delegateToNextEpoch
-	}else{
-		log.Println(sc.book[epoch][staker].delegateTo)
-		return sc.book[epoch][staker].delegateTo
-	}
+	_, activeTarget, status:= sc.findActiveTarget(epoch, staker)
+	if status == 1 { return activeTarget.delegateToNextEpoch }
+	if status == 0 { return activeTarget.delegateTo }
+	return staker
 }
 
 func (sc *KyberStakingContract) GetReward(epoch uint64, staker string) (percentage float64) {
 
 	sum := uint64(0)
 	for _, staker := range sc.voters[epoch] {
-		//sum += len(sc.book[epoch][v].vote)
-		if sc.book[epoch][staker].delegateTo == staker {
-			sum += uint64(len(sc.book[epoch][staker].vote)) * (sc.book[epoch][staker].stake - sc.book[epoch][staker].withdraw)
-		}
+		//if sc.book[epoch][staker].delegateTo == staker {
+		//	sum += uint64(len(sc.book[epoch][staker].vote)) * (sc.book[epoch][staker].stake - sc.book[epoch][staker].withdraw)
+		//}
 
 		for _, item := range sc.book[epoch][staker].representativeFor {
-			if item != staker{
-				if _, ok := sc.book[epoch][item]; !ok{
-					prevTemp := sc.book[sc.book2[item]][item]
-					sum += uint64(len(sc.book[epoch][staker].vote)) * (prevTemp.stake + prevTemp.currentStake - prevTemp.withdraw)
-				}else{
-					sum += uint64(len(sc.book[epoch][staker].vote)) * (sc.book[epoch][item].stake - sc.book[epoch][item].withdraw)
-				}
+			_, activeTarget, status:= sc.findActiveTarget(epoch, item)
+			if status == 1 {
+				sum += uint64(len(sc.book[epoch][staker].vote)) * (activeTarget.stake + activeTarget.currentStake - activeTarget.withdraw)
+			} else if status == 0 {
+				sum += uint64(len(sc.book[epoch][staker].vote)) * (activeTarget.stake - activeTarget.withdraw)
 			}
 		}
 	}
 	if sum == 0 {
-		log.Println(0)
+		//log.Println(0)
 		return 0
 	}else {
 		stakerPoint := uint64(0)
-		if sc.book[epoch][staker].delegateTo == staker{
-			if _, ok := sc.book[epoch][staker]; !ok{
-				prevTemp := sc.book[sc.book2[staker]][staker]
-				stakerPoint += uint64(len(sc.book[epoch][staker].vote)) * (prevTemp.stake + prevTemp.currentStake - prevTemp.withdraw)
-			}else{
-				stakerPoint += uint64(len(sc.book[epoch][staker].vote)) * (sc.book[epoch][staker].stake - sc.book[epoch][staker].withdraw)
-			}
-		}
-
-		for _, item := range sc.book[epoch][staker].representativeFor {
-			if item != staker{
-				if _, ok := sc.book[epoch][item]; !ok{
-					prevTemp := sc.book[sc.book2[item]][item]
-					stakerPoint += uint64(len(sc.book[epoch][staker].vote)) * (prevTemp.stake + prevTemp.currentStake - prevTemp.withdraw)
-				}else{
-					stakerPoint += uint64(len(sc.book[epoch][staker].vote)) * (sc.book[epoch][item].stake - sc.book[epoch][item].withdraw)
+		if containsString(sc.voters[epoch], staker){
+			for _, item := range sc.book[epoch][staker].representativeFor {
+				_, activeTarget, status:= sc.findActiveTarget(epoch, item)
+				if status == 1 {
+					stakerPoint += uint64(len(sc.book[epoch][staker].vote)) * (activeTarget.stake + activeTarget.currentStake - activeTarget.withdraw)
+				} else if status == 0 {
+					stakerPoint += uint64(len(sc.book[epoch][staker].vote)) * (activeTarget.stake - activeTarget.withdraw)
 				}
 			}
 		}
 
-		log.Println(stakerPoint,"/", sum,"=", float64(stakerPoint) / float64(sum))
+		//log.Println(stakerPoint,"/", sum,"=", float64(stakerPoint) / float64(sum))
 		return float64(stakerPoint) / float64(sum)
 	}
 }
@@ -252,38 +250,51 @@ func (sc *KyberStakingContract) GetReward(epoch uint64, staker string) (percenta
 func (sc *KyberStakingContract) GetPoolReward(epoch uint64, staker string) (percentage float64) {
 	stakerPoint := uint64(0)
 	var temp []string
-	if _, ok := sc.book[epoch][staker]; !ok{
-		prevTemp := sc.book[sc.book2[staker]][staker]
-		stakerPoint = prevTemp.stake + prevTemp.currentStake - prevTemp.withdraw
-		log.Println("====", prevTemp.delegateTo)
-		vutien := prevTemp.delegateToNextEpoch
-		if _, ok := sc.book[epoch][ vutien ]; !ok {
-			temp = sc.book[sc.book2[vutien]][vutien].representativeForNextEpoch
-		}else {
-			temp = sc.book[epoch][vutien].representativeForNextEpoch
+	var ee uint64
+	activeEpoch, activeTarget, status:= sc.findActiveTarget(epoch, staker)
+
+	if status == 2 {return 0}
+	if status == 1{
+		stakerPoint = activeTarget.stake + activeTarget.currentStake - activeTarget.withdraw
+		_, a, s:= sc.findActiveTarget(activeEpoch+1, activeTarget.delegateToNextEpoch)
+		ee = activeEpoch+1
+		if s==1{
+			temp = a.representativeForNextEpoch
+		}else if s== 0{
+			temp = a.representativeFor
 		}
-	}else{
-		stakerPoint = sc.book[epoch][staker].stake - sc.book[epoch][staker].withdraw
-		vutien := sc.book[epoch][staker].delegateTo
-		if _, ok := sc.book[epoch][ vutien ]; !ok {
-			temp = sc.book[sc.book2[vutien]][vutien].representativeFor
-		}else {
-			temp = sc.book[epoch][vutien].representativeFor
+	}else {
+		stakerPoint = activeTarget.stake - activeTarget.withdraw
+		_, a, s:= sc.findActiveTarget(activeEpoch, sc.book[epoch][staker].delegateTo)
+		ee = activeEpoch
+		if s==1{
+			temp = a.representativeForNextEpoch
+		}else if s== 0{
+			temp = a.representativeFor
 		}
 	}
 
 	poolPoint := uint64(0)
 
 	for _, item := range temp {
-		if _, ok := sc.book[epoch][item]; !ok{
-			prevTemp := sc.book[sc.book2[item]][item]
-			poolPoint += prevTemp.stake + prevTemp.currentStake - prevTemp.withdraw
-		}else{
-			poolPoint += sc.book[epoch][item].stake - sc.book[epoch][item].withdraw
+		_, activeTarget, status:= sc.findActiveTarget(ee, item)
+		if status == 1 {
+			poolPoint += activeTarget.stake + activeTarget.currentStake - activeTarget.withdraw
+		} else if status == 0 {
+			poolPoint += activeTarget.stake - activeTarget.withdraw
 		}
 	}
 
-	log.Println(stakerPoint,"/", poolPoint,"=", float64(stakerPoint)/ float64(poolPoint))
+	//log.Println(stakerPoint,"/", poolPoint,"=", float64(stakerPoint)/ float64(poolPoint))
+	if poolPoint ==0 {
+		if stakerPoint == 0{
+			return 0
+		}else {
+			return 1
+		}
+	}else {
+		return float64(stakerPoint)/ float64(poolPoint)
+	}
 	return float64(stakerPoint)/ float64(poolPoint)
 }
 
