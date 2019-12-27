@@ -72,8 +72,8 @@ func (s *StakerStorage) WithdrawAmount(amount uint64) {
 		return
 	}
 	if amount <= s.tmpStake+s.stakeAmount {
-		s.tmpStake = 0
 		s.stakeAmount = s.tmpStake + s.stakeAmount - amount
+		s.tmpStake = 0
 		return
 	}
 }
