@@ -6,9 +6,8 @@ type StakerStorage struct {
 	representative string
 	delegator      []string
 	address        string
+	tmpStake       uint64
 	stakeAmount    uint64
-	holdAmount     uint64
-	newStakeAmount uint64
 	campArr        []uint64
 	mu             *sync.RWMutex
 }
@@ -22,7 +21,7 @@ func NewStakerStorage(address string) *StakerStorage {
 	return staker
 }
 
-func (s *StakerStorage) Copy() *StakerStorage {
+func (s *StakerStorage) CloneForNextEpoch() *StakerStorage {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -33,8 +32,7 @@ func (s *StakerStorage) Copy() *StakerStorage {
 		representative: s.representative,
 		delegator:      delegator,
 		address:        s.address,
-		stakeAmount:    s.stakeAmount,
-		holdAmount:     s.stakeAmount,
+		stakeAmount:    s.stakeAmount + s.tmpStake,
 		mu:             &sync.RWMutex{},
 	}
 }
@@ -44,10 +42,11 @@ func (s *StakerStorage) GetStakeAmount() uint64 {
 	defer s.mu.RUnlock()
 	return s.stakeAmount
 }
-func (s *StakerStorage) GetHoldAmount() uint64 {
+
+func (s *StakerStorage) GetTmpStakeAmount() uint64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.holdAmount
+	return s.tmpStake
 }
 
 func (s *StakerStorage) GetDelegator() []string {
@@ -59,42 +58,21 @@ func (s *StakerStorage) GetDelegator() []string {
 func (s *StakerStorage) StakeAmount(amount uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.stakeAmount = s.stakeAmount + amount
-	s.holdAmount = s.holdAmount + amount
+	s.tmpStake = s.tmpStake + amount
 }
 
 func (s *StakerStorage) WithdrawAmount(amount uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if amount > s.stakeAmount {
-		s.stakeAmount = 0
-		s.holdAmount = 0
-	}
-	s.stakeAmount = s.stakeAmount - amount
-	s.holdAmount = s.holdAmount - amount
-}
-
-func (s *StakerStorage) AddNewHoldAmount(amount uint64) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	s.newStakeAmount = s.newStakeAmount + amount
-}
-
-func (s *StakerStorage) WithdrawHoldAmount(amount uint64) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	if amount <= s.newStakeAmount {
-		s.newStakeAmount = s.newStakeAmount - amount
+	if amount < s.tmpStake {
+		s.tmpStake = s.tmpStake - amount
 		return
 	}
-	if amount <= s.newStakeAmount+s.holdAmount {
-		s.holdAmount = s.holdAmount + s.newStakeAmount - amount
-		s.newStakeAmount = 0
+	if amount <= s.tmpStake+s.stakeAmount {
+		s.tmpStake = 0
+		s.stakeAmount = s.tmpStake + s.stakeAmount - amount
 		return
 	}
-
-	s.holdAmount = 0
-	s.newStakeAmount = 0
 }
 
 func (s *StakerStorage) GetRepresentative() string {
@@ -140,4 +118,16 @@ func (s *StakerStorage) Vote(voteId uint64) {
 	s.mu.Lock()
 	s.campArr = campArr
 	s.mu.Unlock()
+}
+
+func (s *StakerStorage) RemoveDelegator(address string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	newDelegator := make([]string, 0)
+	for _, delegator := range s.delegator {
+		if delegator != address {
+			newDelegator = append(newDelegator, delegator)
+		}
+	}
+	s.delegator = newDelegator
 }

@@ -29,18 +29,20 @@ func (k *KyberStakingStorage) CreateEpoch(epochNumber uint64) *EpochStorage {
 	defer k.mu.Unlock()
 	// find preivous epoch
 	var previousEpoch *EpochStorage
-	index := epochNumber - 1
+	index := epochNumber
 	for {
-		if index == 0 {
-			break
+		if index > 0 {
+			previousEpoch = k.epoch[index-1]
+			if previousEpoch != nil {
+				break
+			}
 		}
-		previousEpoch = k.epoch[index]
-		if previousEpoch != nil {
+		if index == 0 {
 			break
 		}
 		index--
 	}
-	newEpoch := NewEpochStorage(previousEpoch)
+	newEpoch := NewEpochStorage(previousEpoch, epochNumber)
 	k.epoch[epochNumber] = newEpoch
 	return newEpoch
 }
@@ -51,11 +53,11 @@ func (k *KyberStakingStorage) GetClosestActiveEpoch(epoch uint64) *EpochStorage 
 
 	index := epoch
 	for {
-		if index == 0 {
-			break
-		}
 		if epoch, ok := k.epoch[index]; ok {
 			return epoch
+		}
+		if index == 0 {
+			break
 		}
 		index--
 	}

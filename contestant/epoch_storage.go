@@ -5,35 +5,42 @@ import (
 )
 
 type EpochStorage struct {
+	epocNumber    uint64
 	previousEpoch *EpochStorage
 	stake         map[string]*StakerStorage
 	mu            *sync.RWMutex
 }
 
-func NewEpochStorage(previousEpoch *EpochStorage) *EpochStorage {
+func NewEpochStorage(previousEpoch *EpochStorage, epocNumber uint64) *EpochStorage {
 	// clone all state
 	if previousEpoch != nil {
-		return previousEpoch.Copy()
+		return previousEpoch.CloneForNextEpoch(epocNumber)
 	}
 	return &EpochStorage{
-		stake: make(map[string]*StakerStorage),
-		mu:    &sync.RWMutex{},
+		epocNumber: epocNumber,
+		stake:      make(map[string]*StakerStorage),
+		mu:         &sync.RWMutex{},
 	}
 }
 
-func (e *EpochStorage) Copy() *EpochStorage {
+func (e *EpochStorage) CloneForNextEpoch(epocNumber uint64) *EpochStorage {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
 	stake := make(map[string]*StakerStorage)
 	for address, staker := range e.stake {
-		stake[address] = staker.Copy()
+		stake[address] = staker.CloneForNextEpoch()
 	}
 	return &EpochStorage{
 		previousEpoch: e,
+		epocNumber:    epocNumber,
 		stake:         stake,
 		mu:            &sync.RWMutex{},
 	}
+}
+
+func (e *EpochStorage) GetEpochNumber() uint64 {
+	return e.epocNumber
 }
 
 func (e *EpochStorage) GetPreviousEpoch() *EpochStorage {
@@ -67,19 +74,27 @@ func (e *EpochStorage) GetStakerPoint(address string) uint64 {
 	defer e.mu.RUnlock()
 
 	a := e.GetStaker(address)
-	if a == nil || a.GetLenCamp() == 0 {
+	if a == nil {
 		return 0
 	}
-	totalStake := a.GetHoldAmount()
+
+	var totalStake uint64
+
+	if a.GetRepresentative() == a.GetAddress() {
+		totalStake = a.GetStakeAmount()
+	}
+
 	delegators := a.GetDelegator()
 	for _, dAddr := range delegators {
 		delegator := e.GetStaker(dAddr)
 		if delegator != nil {
-			totalStake = totalStake + delegator.GetHoldAmount()
+			totalStake = totalStake + delegator.GetStakeAmount()
 		}
 	}
+
 	return totalStake * a.GetLenCamp()
 }
+
 func (e *EpochStorage) GetTotalPoint() uint64 {
 	e.mu.RLock()
 	stake := e.stake

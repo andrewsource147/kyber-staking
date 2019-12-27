@@ -20,7 +20,7 @@ func NewKyberStakingContract(startBlock uint64, epochDuration uint64) *KyberStak
 // b is current representative
 
 func (sc *KyberStakingContract) Stake(block uint64, amount uint64, staker string) {
-	epochNumber := sc.getEpochNumberbyBlock(block) + 1
+	epochNumber := sc.getEpochNumberbyBlock(block)
 	E := sc.storage.GetEpoch(epochNumber)
 	if E == nil {
 		E = sc.storage.CreateEpoch(epochNumber)
@@ -29,21 +29,10 @@ func (sc *KyberStakingContract) Stake(block uint64, amount uint64, staker string
 	// cumulative amount for staker
 	a := E.GetOrCreateStaker(staker)
 	a.StakeAmount(amount)
-
-	// handle for reward
-	preE := E.GetPreviousEpoch()
-	if preE == nil {
-		return
-	}
-	preA := preE.GetStaker(staker)
-	if preA == nil {
-		return
-	}
-	preA.AddNewHoldAmount(amount)
 }
 
 func (sc *KyberStakingContract) Withdraw(block uint64, amount uint64, staker string) {
-	epochNumber := sc.getEpochNumberbyBlock(block) + 1
+	epochNumber := sc.getEpochNumberbyBlock(block)
 	E := sc.storage.GetEpoch(epochNumber)
 	if E == nil {
 		E = sc.storage.CreateEpoch(epochNumber)
@@ -53,18 +42,8 @@ func (sc *KyberStakingContract) Withdraw(block uint64, amount uint64, staker str
 	if a == nil {
 		return
 	}
-	a.WithdrawAmount(amount)
 
-	// handle for reward
-	preE := E.GetPreviousEpoch()
-	if preE == nil {
-		return
-	}
-	preA := preE.GetStaker(staker)
-	if preA == nil {
-		return
-	}
-	preA.WithdrawHoldAmount(amount)
+	a.WithdrawAmount(amount)
 }
 
 func (sc *KyberStakingContract) Delegate(block uint64, staker string, representative string) {
@@ -75,10 +54,18 @@ func (sc *KyberStakingContract) Delegate(block uint64, staker string, representa
 	}
 
 	a := E.GetOrCreateStaker(staker)
-	a.SetRepresentative(representative)
 
+	if a.GetRepresentative() != representative {
+		b := E.GetStaker(a.GetRepresentative())
+		b.RemoveDelegator(staker)
+	}
+
+	a.SetRepresentative(representative)
 	b := E.GetOrCreateStaker(representative)
-	b.AddDelegator(staker)
+	if representative != staker {
+		b.AddDelegator(staker)
+	}
+
 }
 
 func (sc *KyberStakingContract) Vote(block uint64, voteid uint64, staker string) {
@@ -104,7 +91,11 @@ func (sc *KyberStakingContract) GetStake(epoch uint64, staker string) (stake uin
 		return
 	}
 
-	stake = a.GetStakeAmount()
+	if E.GetEpochNumber() == epoch {
+		stake = a.GetStakeAmount()
+	} else {
+		stake = a.GetStakeAmount() + a.GetTmpStakeAmount()
+	}
 	return
 }
 
@@ -122,7 +113,12 @@ func (sc *KyberStakingContract) GetDelegatedStake(epoch uint64, staker string) (
 	delegators := a.GetDelegator()
 	for _, address := range delegators {
 		delegator := E.GetStaker(address)
-		delegatedStake = delegatedStake + delegator.GetStakeAmount()
+		if E.GetEpochNumber() == epoch {
+			delegatedStake = delegatedStake + delegator.GetStakeAmount()
+		} else {
+			delegatedStake = delegatedStake + delegator.GetStakeAmount() + delegator.GetTmpStakeAmount()
+		}
+
 	}
 	return
 }
@@ -142,16 +138,25 @@ func (sc *KyberStakingContract) GetRepresentative(epoch uint64, staker string) (
 
 func (sc *KyberStakingContract) GetReward(epoch uint64, staker string) (percentage float64) {
 	E := sc.storage.GetClosestActiveEpoch(epoch)
-	if E == nil {
+	if E == nil || E.GetEpochNumber() != epoch {
 		return
 	}
 
+	a := E.GetStaker(staker)
+	if a == nil {
+		return
+	}
+
+	// get staker amount
+
 	stakerPoint := E.GetStakerPoint(staker)
+
 	if stakerPoint == 0 {
 		return
 	}
+
 	epochTotalPoint := E.GetTotalPoint()
-	if stakerPoint == 0 {
+	if epochTotalPoint == 0 {
 		return
 	}
 
@@ -168,27 +173,47 @@ func (sc *KyberStakingContract) GetPoolReward(epoch uint64, staker string) (perc
 	if a == nil {
 		return
 	}
-	bAddr := a.GetRepresentative()
 
-	aHoldAmount := a.GetHoldAmount()
-	if aHoldAmount == 0 {
+	var aStakeAmount uint64
+	if E.GetEpochNumber() == epoch {
+		aStakeAmount = a.GetStakeAmount()
+	} else {
+		aStakeAmount = a.GetStakeAmount() + a.GetTmpStakeAmount()
+	}
+
+	if aStakeAmount == 0 {
 		return
 	}
 
-	// get hold amount of
+	bAddr := a.GetRepresentative()
 	b := E.GetStaker(bAddr)
-	bTotalAmount := b.GetHoldAmount()
+	if b == nil {
+		return
+	}
+
+	var bTotalAmount uint64
+	if E.GetEpochNumber() == epoch {
+		bTotalAmount = b.GetStakeAmount()
+	} else {
+		bTotalAmount = b.GetStakeAmount() + b.GetTmpStakeAmount()
+	}
+
 	bDelegators := b.GetDelegator()
 	for _, address := range bDelegators {
 		delegator := E.GetStaker(address)
-		bTotalAmount = bTotalAmount + delegator.GetHoldAmount()
+		if E.GetEpochNumber() == epoch {
+			bTotalAmount = bTotalAmount + delegator.GetStakeAmount()
+		} else {
+			bTotalAmount = bTotalAmount + delegator.GetStakeAmount() + delegator.GetTmpStakeAmount()
+		}
+
 	}
 
 	if bTotalAmount == 0 {
 		return
 	}
 
-	percentage = float64(aHoldAmount) / float64(bTotalAmount)
+	percentage = float64(aStakeAmount) / float64(bTotalAmount)
 	return
 }
 
