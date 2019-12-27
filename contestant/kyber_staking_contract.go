@@ -65,7 +65,6 @@ func (sc *KyberStakingContract) Delegate(block uint64, staker string, representa
 	if representative != staker {
 		b.AddDelegator(staker)
 	}
-
 }
 
 func (sc *KyberStakingContract) Vote(block uint64, voteid uint64, staker string) {
@@ -115,13 +114,18 @@ func (sc *KyberStakingContract) GetDelegatedStake(epoch uint64, staker string) (
 		delegators := a.GetDelegator()
 		for _, address := range delegators {
 			delegator := E.GetStaker(address)
-			delegatedStake = delegatedStake + delegator.GetStakeAmount()
+			if delegator != nil {
+				delegatedStake = delegatedStake + delegator.GetStakeAmount()
+			}
+
 		}
 	} else {
 		delegators := a.GetTmpDelegator()
 		for _, address := range delegators {
 			delegator := E.GetStaker(address)
-			delegatedStake = delegatedStake + delegator.GetStakeAmount() + delegator.GetTmpStakeAmount()
+			if delegator != nil {
+				delegatedStake = delegatedStake + delegator.GetStakeAmount() + delegator.GetTmpStakeAmount()
+			}
 		}
 	}
 
@@ -148,11 +152,13 @@ func (sc *KyberStakingContract) GetRepresentative(epoch uint64, staker string) (
 
 func (sc *KyberStakingContract) GetReward(epoch uint64, staker string) (percentage float64) {
 	E := sc.storage.GetClosestActiveEpoch(epoch)
+
 	if E == nil || E.GetEpochNumber() != epoch {
 		return
 	}
 
 	a := E.GetStaker(staker)
+
 	if a == nil {
 		return
 	}
@@ -201,7 +207,9 @@ func (sc *KyberStakingContract) GetPoolReward(epoch uint64, staker string) (perc
 		bDelegators := b.GetDelegator()
 		for _, address := range bDelegators {
 			delegator := E.GetStaker(address)
-			bTotalAmount = bTotalAmount + delegator.GetStakeAmount()
+			if delegator != nil {
+				bTotalAmount = bTotalAmount + delegator.GetStakeAmount()
+			}
 		}
 
 		if bTotalAmount == 0 {
@@ -225,7 +233,9 @@ func (sc *KyberStakingContract) GetPoolReward(epoch uint64, staker string) (perc
 		bDelegators := b.GetTmpDelegator()
 		for _, address := range bDelegators {
 			delegator := E.GetStaker(address)
-			bTotalAmount = bTotalAmount + delegator.GetStakeAmount() + delegator.GetTmpStakeAmount()
+			if delegator != nil {
+				bTotalAmount = bTotalAmount + delegator.GetStakeAmount() + delegator.GetTmpStakeAmount()
+			}
 		}
 		if bTotalAmount == 0 {
 			return
