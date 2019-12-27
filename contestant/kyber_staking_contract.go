@@ -192,10 +192,14 @@ func (sc *KyberStakingContract) GetPoolReward(epoch uint64, staker string) (perc
 	}
 
 	var bTotalAmount uint64
-	if E.GetEpochNumber() == epoch {
-		bTotalAmount = b.GetStakeAmount()
-	} else {
-		bTotalAmount = b.GetStakeAmount() + b.GetTmpStakeAmount()
+
+	// Count b stake amount if b not delegate for anyone else
+	if b.GetRepresentative() == b.GetAddress() {
+		if E.GetEpochNumber() == epoch {
+			bTotalAmount = b.GetStakeAmount()
+		} else {
+			bTotalAmount = b.GetStakeAmount() + b.GetTmpStakeAmount()
+		}
 	}
 
 	bDelegators := b.GetDelegator()
