@@ -47,7 +47,7 @@ func (sc *KyberStakingContract) Withdraw(block uint64, amount uint64, staker str
 }
 
 func (sc *KyberStakingContract) Delegate(block uint64, staker string, representative string) {
-	epochNumber := sc.getEpochNumberbyBlock(block) + 1
+	epochNumber := sc.getEpochNumberbyBlock(block)
 	E := sc.storage.GetEpoch(epochNumber)
 	if E == nil {
 		E = sc.storage.CreateEpoch(epochNumber)
@@ -55,8 +55,8 @@ func (sc *KyberStakingContract) Delegate(block uint64, staker string, representa
 
 	a := E.GetOrCreateStaker(staker)
 
-	if a.GetRepresentative() != representative {
-		b := E.GetStaker(a.GetRepresentative())
+	if a.GetTmpRepresentative() != representative {
+		b := E.GetStaker(a.GetTmpRepresentative())
 		b.RemoveDelegator(staker)
 	}
 
@@ -110,16 +110,21 @@ func (sc *KyberStakingContract) GetDelegatedStake(epoch uint64, staker string) (
 	if a == nil {
 		return
 	}
-	delegators := a.GetDelegator()
-	for _, address := range delegators {
-		delegator := E.GetStaker(address)
-		if E.GetEpochNumber() == epoch {
+
+	if E.GetEpochNumber() == epoch {
+		delegators := a.GetDelegator()
+		for _, address := range delegators {
+			delegator := E.GetStaker(address)
 			delegatedStake = delegatedStake + delegator.GetStakeAmount()
-		} else {
+		}
+	} else {
+		delegators := a.GetTmpDelegator()
+		for _, address := range delegators {
+			delegator := E.GetStaker(address)
 			delegatedStake = delegatedStake + delegator.GetStakeAmount() + delegator.GetTmpStakeAmount()
 		}
-
 	}
+
 	return
 }
 
@@ -132,7 +137,12 @@ func (sc *KyberStakingContract) GetRepresentative(epoch uint64, staker string) (
 	if a == nil {
 		return staker
 	}
-	poolmaster = a.GetRepresentative()
+
+	if E.GetEpochNumber() == epoch {
+		poolmaster = a.GetRepresentative()
+	} else {
+		poolmaster = a.GetTmpRepresentative()
+	}
 	return
 }
 
@@ -150,7 +160,6 @@ func (sc *KyberStakingContract) GetReward(epoch uint64, staker string) (percenta
 	// get staker amount
 
 	stakerPoint := E.GetStakerPoint(staker)
-
 	if stakerPoint == 0 {
 		return
 	}
@@ -174,50 +183,55 @@ func (sc *KyberStakingContract) GetPoolReward(epoch uint64, staker string) (perc
 		return
 	}
 
-	var aStakeAmount uint64
 	if E.GetEpochNumber() == epoch {
-		aStakeAmount = a.GetStakeAmount()
-	} else {
-		aStakeAmount = a.GetStakeAmount() + a.GetTmpStakeAmount()
-	}
+		aStakeAmount := a.GetStakeAmount()
+		bAddr := a.GetRepresentative()
+		b := E.GetStaker(bAddr)
+		if b == nil {
+			return
+		}
 
-	if aStakeAmount == 0 {
-		return
-	}
+		var bTotalAmount uint64
 
-	bAddr := a.GetRepresentative()
-	b := E.GetStaker(bAddr)
-	if b == nil {
-		return
-	}
-
-	var bTotalAmount uint64
-
-	// Count b stake amount if b not delegate for anyone else
-	if b.GetRepresentative() == b.GetAddress() {
-		if E.GetEpochNumber() == epoch {
+		// Count b stake amount if b not delegate for anyone else
+		if b.GetRepresentative() == b.GetAddress() {
 			bTotalAmount = b.GetStakeAmount()
-		} else {
+		}
+
+		bDelegators := b.GetDelegator()
+		for _, address := range bDelegators {
+			delegator := E.GetStaker(address)
+			bTotalAmount = bTotalAmount + delegator.GetStakeAmount()
+		}
+
+		if bTotalAmount == 0 {
+			return
+		}
+		percentage = float64(aStakeAmount) / float64(bTotalAmount)
+
+	} else {
+		aStakeAmount := a.GetStakeAmount() + a.GetTmpStakeAmount()
+		bAddr := a.GetTmpRepresentative()
+		b := E.GetStaker(bAddr)
+		if b == nil {
+			return
+		}
+
+		var bTotalAmount uint64
+		if b.GetTmpRepresentative() == b.GetAddress() {
 			bTotalAmount = b.GetStakeAmount() + b.GetTmpStakeAmount()
 		}
-	}
 
-	bDelegators := b.GetDelegator()
-	for _, address := range bDelegators {
-		delegator := E.GetStaker(address)
-		if E.GetEpochNumber() == epoch {
-			bTotalAmount = bTotalAmount + delegator.GetStakeAmount()
-		} else {
+		bDelegators := b.GetTmpDelegator()
+		for _, address := range bDelegators {
+			delegator := E.GetStaker(address)
 			bTotalAmount = bTotalAmount + delegator.GetStakeAmount() + delegator.GetTmpStakeAmount()
 		}
-
+		if bTotalAmount == 0 {
+			return
+		}
+		percentage = float64(aStakeAmount) / float64(bTotalAmount)
 	}
-
-	if bTotalAmount == 0 {
-		return
-	}
-
-	percentage = float64(aStakeAmount) / float64(bTotalAmount)
 	return
 }
 
