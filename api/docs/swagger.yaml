@@ -1,0 +1,355 @@
+definitions:
+  handler.CreateContractRequest:
+    properties:
+      epoch_duration:
+        example: 1000
+        type: integer
+      start_block:
+        example: 2000
+        type: integer
+    required:
+    - epoch_duration
+    - start_block
+    type: object
+  handler.DelegateRequest:
+    properties:
+      block:
+        example: 3000
+        type: integer
+      representative:
+        example: Bob
+        type: string
+      staker:
+        example: Alice
+        type: string
+    required:
+    - block
+    - representative
+    - staker
+    type: object
+  handler.Response:
+    properties:
+      data:
+        type: object
+    type: object
+  handler.StakeRequest:
+    properties:
+      amount:
+        example: 500
+        type: integer
+      block:
+        example: 3000
+        type: integer
+      staker:
+        example: Alice
+        type: string
+    required:
+    - amount
+    - block
+    - staker
+    type: object
+  handler.VoteRequest:
+    properties:
+      block:
+        example: 3000
+        type: integer
+      staker:
+        example: Alice
+        type: string
+      vote_id:
+        example: 1
+        type: integer
+    required:
+    - block
+    - staker
+    - vote_id
+    type: object
+  utils.Error:
+    properties:
+      errors:
+        type: object
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API is used to interact with Kyber Staking contract
+  license:
+    name: Apache 2.0
+  title: Kyber Staking API
+  version: "1.0"
+paths:
+  /delegate:
+    post:
+      consumes:
+      - application/json
+      description: Staker delegate an amount to a representative at a block
+      parameters:
+      - description: Delegate request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.DelegateRequest'
+          type: object
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: Delegate
+  /delegateStake:
+    get:
+      consumes:
+      - application/json
+      description: Get amount a staker has been delegated at an epoch
+      parameters:
+      - description: Epoch number
+        in: query
+        name: epoch
+        required: true
+        type: integer
+      - description: Staker name
+        in: query
+        name: staker
+        required: true
+        type: string
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: GetDelegateStake
+  /newContract:
+    post:
+      consumes:
+      - application/json
+      description: Create new contract
+      parameters:
+      - description: Create contract request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateContractRequest'
+          type: object
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: Create new contract
+  /poolReward:
+    get:
+      consumes:
+      - application/json
+      description: Get reward for a staker from representative at an epoch
+      parameters:
+      - description: Epoch number
+        in: query
+        name: epoch
+        required: true
+        type: integer
+      - description: Staker name
+        in: query
+        name: staker
+        required: true
+        type: string
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: GetPoolReward
+  /representative:
+    get:
+      consumes:
+      - application/json
+      description: Get representative for a staker at an epoch
+      parameters:
+      - description: Epoch number
+        in: query
+        name: epoch
+        required: true
+        type: integer
+      - description: Staker name
+        in: query
+        name: staker
+        required: true
+        type: string
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: GetRepresentative
+  /reward:
+    get:
+      consumes:
+      - application/json
+      description: Get reward for a staker at an epoch (in percentage)
+      parameters:
+      - description: Epoch number
+        in: query
+        name: epoch
+        required: true
+        type: integer
+      - description: Staker name
+        in: query
+        name: staker
+        required: true
+        type: string
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: GetReward
+  /stake:
+    get:
+      consumes:
+      - application/json
+      description: Get amount a staker has staked at an epoch
+      parameters:
+      - description: Epoch number
+        in: query
+        name: epoch
+        required: true
+        type: integer
+      - description: Staker name
+        in: query
+        name: staker
+        required: true
+        type: string
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: GetStake
+    post:
+      consumes:
+      - application/json
+      description: Stake an amount for a staker at a block
+      parameters:
+      - description: Stake request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.StakeRequest'
+          type: object
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: Stake
+  /vote:
+    post:
+      consumes:
+      - application/json
+      description: Staker vote for a campain ID at a block
+      parameters:
+      - description: Vote request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.VoteRequest'
+          type: object
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: Vote
+  /withdraw:
+    post:
+      consumes:
+      - application/json
+      description: Staker withdraw an amount at a block
+      parameters:
+      - description: Withdraw request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.StakeRequest'
+          type: object
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Error'
+      summary: Withdraw
+swagger: "2.0"

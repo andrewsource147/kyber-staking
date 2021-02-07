@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/kyber/staking/api"
 	"log"
 	"os"
 	"runtime"
 	"sort"
 
-	"github.com/kyber/staking/contestant"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -38,15 +38,8 @@ func main() {
 }
 
 func cmdMain(ctx *cli.Context) error {
-
-	startBlock := uint64(2000)
-	epochDuration := uint64(1000)
-	kyberSc := contestant.NewKyberStakingContract(startBlock, epochDuration)
-
-	kyberSc.Stake(uint64(900), uint64(500), "mike")
-	kyberSc.GetStake(uint64(0), "mike")
-	kyberSc.GetStake(uint64(1), "mike")
-	log.Println("staking done")
+	server := api.NewServer()
+	server.Run()
 
 	return nil
 }
